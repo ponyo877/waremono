@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>割山ポータル</title>
+<meta name="description" content="見た目はふつうの社内ポータル。でもクリックやキー入力のたびに画面がガラスのように割れ、欠けた穴から設計図とソースコードがのぞきます。壊れた画面はリロードしても直りません。">
+<meta name="theme-color" content="#f3f3f0">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="license" href="credits.html">
+<link rel="canonical" href="https://ponyo877.github.io/waremono/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ponyo877.github.io/waremono/">
+<meta property="og:site_name" content="割山ポータル">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="割山ポータル — 触ると割れる社内ポータル">
+<meta property="og:description" content="見た目はふつうの社内ポータル。でもクリックやキー入力のたびに画面がガラスのように割れ、欠けた穴から設計図とソースコードがのぞきます。壊れた画面はリロードしても直りません。">
+<meta property="og:image" content="https://ponyo877.github.io/waremono/ogp.png?v=2">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="ヒビが入り部品が外れかけた社内ポータルの画面を映すノートパソコンとスマートフォン。見出しは「社内ポータルなのに触ると割れる」">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="割山ポータル — 触ると割れる社内ポータル">
+<meta name="twitter:description" content="見た目はふつうの社内ポータル。でもクリックやキー入力のたびに画面がガラスのように割れ、欠けた穴から設計図とソースコードがのぞきます。壊れた画面はリロードしても直りません。">
+<meta name="twitter:image" content="https://ponyo877.github.io/waremono/ogp.png?v=2">
+<meta name="twitter:image:alt" content="ヒビが入り部品が外れかけた社内ポータルの画面を映すノートパソコンとスマートフォン。見出しは「社内ポータルなのに触ると割れる」">
+<style>
+  html, body { margin: 0; height: 100%; background: #f3f3f0; overflow: hidden; overscroll-behavior: none; }
+  body { touch-action: none; -webkit-user-select: none; user-select: none; }
+  #loading { position: fixed; inset: 0; display: flex; flex-direction: column; gap: 14px; align-items: center; justify-content: center;
+             font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", sans-serif; color: #5c5d63; font-size: 13px; letter-spacing: .04em; }
+  #loading .bar { width: 160px; height: 3px; background: #e2e1dc; border-radius: 2px; overflow: hidden; }
+  #loading .bar i { display: block; height: 100%; width: 0; background: #1d6a59; transition: width .2s; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<div id="loading"><div>割山ポータルを読み込んでいます</div><div class="bar"><i id="prog"></i></div></div>
+<script>
+// ?perf: time each animation frame's work (Go update + draw + WebGL calls)
+if (/[?&]perf\b/.test(location.search)) {
+  const raf = window.requestAnimationFrame.bind(window), d = [], gap = [];
+  let last = 0;
+  window.__perf = { d, gap, stat() {
+    const q = (a, p) => { const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(p * s.length))].toFixed(2); };
+    return { n: d.length, med: q(d, 0.5), p95: q(d, 0.95), max: q(d, 1), gapMed: q(gap, 0.5), gapP95: q(gap, 0.95) };
+  }, reset() { d.length = 0; gap.length = 0; } };
+  window.requestAnimationFrame = cb => raf(t => {
+    if (last) gap.push(t - last);
+    last = t;
+    const s = performance.now();
+    cb(t);
+    d.push(performance.now() - s);
+    if (d.length > 1200) { d.shift(); gap.shift(); }
+  });
+  // ?perf&play=FILE: a scripted play (see bench_js.go); every 5 s a row of
+  // how far gone the screen is and how the frames went goes to __series
+  if (/[?&]play=/.test(location.search)) {
+    const series = window.__series = [], t0 = performance.now();
+    setInterval(() => {
+      if (typeof __wstat !== "function" || !d.length) return;
+      const s = JSON.parse(__wstat()), w = JSON.parse(__wprof()), p = __perf.stat();
+      series.push({ off: window.__offNow || "", wall: Math.round((performance.now() - t0) / 1000), game: +s.t.toFixed(1), d: +s.d.toFixed(3), phase: s.phase,
+        pieces: s.pieces || 0, letters: s.letters || 0, fps: +(p.n / 5).toFixed(1), gapMed: p.gapMed, gapP95: p.gapP95,
+        work: p.med, workP95: p.p95, ticks: +(w.frames / Math.max(1, p.n)).toFixed(2),
+        top: w.rows.filter(r => r.avg >= 0.3).slice(0, 8).map(r => r.name + " " + r.avg).join(", ") });
+      __perf.reset();
+      // &cycle=a|b,c|d: past D 0.8 leave those parts of the frame out by
+      // turns, a row each, to see what each costs here
+      const cyc = new URLSearchParams(location.search).get("cycle");
+      if (cyc && s.d >= 0.8 && s.phase == 0) {
+        const sets = [""].concat(cyc.split("|"));
+        window.__cyc = ((window.__cyc ?? -1) + 1) % sets.length;
+        __woff(window.__offNow = sets[window.__cyc]);
+      }
+    }, 5000);
+  }
+}
+</script>
+<script>window.__wasm = {"br": 5029562, "gz": 6266726, "raw": 25762188};</script>
+<script src="wasm_exec.js"></script>
+<script>
+(async () => {
+  const go = new Go();
+  const prog = document.getElementById("prog");
+  // the dev server (cmd/serve) compresses main.wasm on the fly and says how
+  // long it is; a static host (GitHub Pages, tools/pages) serves the
+  // precompressed files as they are, listed in window.__wasm with their sizes,
+  // and the browser inflates them
+  const W = window.__wasm;
+  const can = f => { try { new DecompressionStream(f); return true; } catch (e) { return false; } };
+  const pick = () => {
+    if (!W || !window.TransformStream) return { url: "main.wasm" };
+    if (W.br && can("brotli")) return { url: "main.wasm.br", size: W.br, inflate: "brotli" };
+    if (W.gz && can("gzip")) return { url: "main.wasm.gz", size: W.gz, inflate: "gzip" };
+    return { url: "main.wasm", size: W.raw };
+  };
+  try {
+    const src = pick();
+    const res = await fetch(src.url);
+    if (!res.ok) throw new Error(res.status + " " + res.statusText);
+    const total = src.size || +res.headers.get("x-raw-length") || 0;
+    let r;
+    if (res.body && WebAssembly.instantiateStreaming && window.TransformStream) {
+      // compile while it downloads, counting the bytes for the bar
+      let got = 0;
+      let body = res.body.pipeThrough(new TransformStream({ transform(chunk, ctl) {
+        got += chunk.length;
+        if (total) prog.style.width = Math.min(100, got / total * 100) + "%";
+        ctl.enqueue(chunk);
+      } }));
+      if (src.inflate) body = body.pipeThrough(new DecompressionStream(src.inflate));
+      r = await WebAssembly.instantiateStreaming(
+        new Response(body, { headers: { "Content-Type": "application/wasm" } }), go.importObject);
+    } else {
+      const raw = src.inflate ? new Response(res.body.pipeThrough(new DecompressionStream(src.inflate))) : res;
+      r = await WebAssembly.instantiate(await raw.arrayBuffer(), go.importObject);
+    }
+    document.getElementById("loading").remove();
+    go.run(r.instance);
+  } catch (e) {
+    document.querySelector("#loading div").textContent = "読み込みに失敗しました: " + e;
+  }
+})();
+</script>
+</body>
+</html>
